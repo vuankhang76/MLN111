@@ -33,6 +33,15 @@ const AI_PROVIDER = 'gemini' as 'openai' | 'gemini' | 'anthropic' | 'cohere' | '
 
 export async function POST(req: NextRequest) {
   try {
+    // Kiểm tra environment variables
+    if (!process.env.GOOGLE_API_KEY && !process.env.OPENAI_API_KEY) {
+      console.error('❌ Missing API keys in environment variables')
+      return NextResponse.json(
+        { message: generateIntelligentFallback([{ content: 'API key missing' }]) },
+        { status: 200 }
+      )
+    }
+
     const { messages } = await req.json()
     
     if (!messages || !Array.isArray(messages)) {
@@ -45,25 +54,28 @@ export async function POST(req: NextRequest) {
     let response: string
 
     try {
-      switch (AI_PROVIDER) {
-        case 'openai':
-          response = await callOpenAI(messages)
-          break
-        case 'gemini':
-          response = await callGemini(messages)
-          break
-        case 'anthropic':
-          response = await callAnthropic(messages)
-          break
-        case 'cohere':
-          response = await callCohere(messages)
-          break
-        default:
-          return NextResponse.json(
-            { error: 'Invalid AI provider' },
-            { status: 500 }
-          )
+      // Timeout wrapper để tránh vượt quá giới hạn Vercel
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 8000) // 8s timeout
+      })
+
+      const apiCall = async () => {
+        switch (AI_PROVIDER) {
+          case 'openai':
+            return await callOpenAI(messages)
+          case 'gemini':
+            return await callGemini(messages)
+          case 'anthropic':
+            return await callAnthropic(messages)
+          case 'cohere':
+            return await callCohere(messages)
+          default:
+            throw new Error('Invalid AI provider')
+        }
       }
+
+      response = await Promise.race([apiCall(), timeoutPromise])
+      
     } catch (aiError) {
       console.error(`${AI_PROVIDER} API failed:`, aiError)
       
@@ -75,8 +87,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Chat API error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { message: generateIntelligentFallback([{ content: 'system error' }]) },
+      { status: 200 } // Trả về 200 thay vì 500 để tránh lỗi UI
     )
   }
 }
@@ -108,8 +120,13 @@ async function callOpenAI(messages: any[]) {
   return data.choices[0].message.content
 }
 
-// Google Gemini
+// Google Gemini - Tối ưu cho Vercel
 async function callGemini(messages: any[]) {
+  // Kiểm tra API key
+  if (!process.env.GOOGLE_API_KEY) {
+    throw new Error('GOOGLE_API_KEY not found in environment variables')
+  }
+
   // Lấy tin nhắn cuối cùng từ người dùng
   const lastUserMessage = messages[messages.length - 1];
   const userInput = lastUserMessage.content.toLowerCase();
