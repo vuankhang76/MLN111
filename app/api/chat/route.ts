@@ -268,7 +268,7 @@ Tuy nhiên, dựa trên câu hỏi của bạn về lý thuyết giai cấp, tô
   if (lastMessage.includes('chào') || lastMessage.includes('hello') || lastMessage.includes('hi')) {
     return `👋 **Chào bạn!** 
 
-Tôi là AI chuyên gia về lý thuyết giai cấp và đấu tranh giai cấv trong chủ nghĩa Mác-Lênin. 
+Tôi là AI chuyên gia về lý thuyết giai cấp và đấu tranh giai cấp trong chủ nghĩa Mác-Lênin. 
 
 🤖 *Hệ thống đang bảo trì nhẹ, nhưng tôi vẫn sẵn sàng trò chuyện!*
 
